@@ -14,6 +14,7 @@ class Ivis:
 
     # to preserve the API, this field must be static (store_state is static, but requires the url) 
     _request_url_base = ""
+    _trustedEmitPath = ""
 
     def __init__(self):
         self._data = json.loads(sys.stdin.readline())
@@ -22,6 +23,7 @@ class Ivis:
         # a flag inidicating whether to inject the CA certificate or not 
         set_ca = False
         Ivis._request_url_base = self._data['server']['trustedUrlBase']
+        Ivis._trustedEmitPath = self._data['server']['trustedEmitPath']
         # this might result (>1 parallel runs) in more tasks writing the same CA into the certifi file 
         try:
             # try to resolve IVIS
@@ -77,7 +79,7 @@ class Ivis:
     
     @staticmethod
     def _request_url():
-        return Ivis._request_url_base + "/rest/remote/emit" # TODO
+        return Ivis._request_url_base + Ivis._trustedEmitPath
 
     def create_signals(self, signal_sets=None, signals=None):
         msg = {
