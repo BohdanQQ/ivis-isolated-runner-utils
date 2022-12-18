@@ -65,7 +65,7 @@ def exitWithCode(code):
     print(str(code))
     exit(code)
 
-if len(sys.argv) < 8:
+if len(sys.argv) < 6:
     print("Invalid number of arguments")
     exitWithCode(1)
 
