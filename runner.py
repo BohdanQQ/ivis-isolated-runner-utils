@@ -3,6 +3,7 @@ import subprocess
 import sys
 import datetime
 import requests
+import time
 
 class RequestFlushHandler:
     def __init__(self, emit_url_base: str, output_event_type: str, cert_paths) -> None:
@@ -98,7 +99,8 @@ def end_run_with_code(code, output, error):
     requests.post(STATUS_URL, json={
         "runId": RUNID,
         "status": {
-            "status": status
+            "status": status,
+            "finished_at": int(time.time()) * 1000
         },
         "output": output,
         "errors": error
