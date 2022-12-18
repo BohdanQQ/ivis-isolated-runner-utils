@@ -4,6 +4,7 @@ import sys
 import datetime
 import requests
 import json
+import platform
 
 class RequestFlushHandler:
     def __init__(self, emit_url_base: str, outputEventType: str) -> None:
@@ -95,7 +96,7 @@ SELECTOR.register(PROCESS.stdout, selectors.EVENT_READ)
 SELECTOR.register(PROCESS.stderr, selectors.EVENT_READ)
 while True:
     for key, _ in SELECTOR.select():
-        data = key.fileobj.read1(-1).decode()
+        data = key.fileobj.read1(BUFFER_MAX).decode()
         if not data:
             after()
         if key.fileobj is PROCESS.stdout:
