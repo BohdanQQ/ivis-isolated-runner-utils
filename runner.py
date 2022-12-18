@@ -4,19 +4,19 @@ import sys
 import datetime
 import requests
 import json
-import platform
 
 class RequestFlushHandler:
-    def __init__(self, emit_url_base: str, outputEventType: str) -> None:
+    def __init__(self, emit_url_base: str, output_event_type: str, cert_paths) -> None:
         self.url = emit_url_base
-        self.eventTypeVal = outputEventType
+        self.event_type_val = output_event_type
+        self.cert_paths = cert_paths
 
     def flush(self, output) -> None:
         msg = {
-            'type': self.eventTypeVal,
-            'data': output
+            'type': self.event_type_val,
+            'data': "\n".join(output)
         }
-        requests.post(self.url, data=json.dumps(msg))
+        requests.post(self.url, data=json.dumps(msg), cert=self.cert_paths)
 
 class OutputBuffer:
     def __init__(self, total_output_max_bytes, flush_timeout_secs, flusher, report_output_overflow) -> None:
@@ -28,7 +28,8 @@ class OutputBuffer:
         self.output_has_overflown = False
         self.flusher = flusher
         self.output_buffer = []
-        self.stderr_buffer = []
+        self.output = ""
+        self.stderr = ""
 
     def register_out(self, output):
         if self.output_size + len(output) > self.MAX_TOTAL_OUTPUT:
@@ -48,7 +49,7 @@ class OutputBuffer:
 
     def register_stderr(self, output):
         self.register_out(output)
-        self.stderr_buffer.append(output)
+        self.stderr += "\n" + output
     
     def buffer_flush_interval_elapsed(self):
         return self.last_flush is None or (datetime.datetime.now() - self.last_flush).total_seconds() >= self.BUFF_FLUSH_TIMEOUT_SECS
@@ -59,23 +60,52 @@ class OutputBuffer:
     
     def flush_buffer(self):
         self.last_flush = datetime.datetime.now()
+        if len(self.output_buffer) == 0:
+            return
         self.flusher.flush(self.output_buffer)
+        self.output += "\n" + "\n".join(self.output_buffer)
         self.output_buffer = []
 
-def exitWithCode(code):
+def exit_with_code(code):
     print(str(code))
     exit(code)
 
-if len(sys.argv) < 6:
+if len(sys.argv) < 14:
     print("Invalid number of arguments")
-    exitWithCode(1)
+    exit_with_code(1)
 
 FILE_TO_EXECUTE=sys.argv[1]
 BUFFER_MAX=int(sys.argv[2])
 BUFFER_FLUSH_SECS=int(sys.argv[3])
 EMIT_URL = sys.argv[4]
 OUTPUT_EVENT_TYPE = sys.argv[5]
+FAIL_EVENT_TYPE = sys.argv[6]
+SUCCESS_EVENT_TYPE = sys.argv[7]
+STATUS_URL = sys.argv[8]
+FAIL_STATUS_CODE = sys.argv[9]
+SUCCESS_STATUS_CODE = sys.argv[10]
+CERT_PATH = sys.argv[11]
+KEY_PATH = sys.argv[12]
+RUNID = sys.argv[13]
+# TODO: CA injection
 
+def end_run_with_code(code, output, error):
+    cert_info = (CERT_PATH, KEY_PATH)
+    event = SUCCESS_EVENT_TYPE if code == 0 else FAIL_EVENT_TYPE
+    status = SUCCESS_STATUS_CODE if code == 0 else FAIL_STATUS_CODE
+    requests.post(EMIT_URL, data=json.dumps({
+        "type": event,
+        "data": ""
+    }), cert=cert_info)
+    requests.post(STATUS_URL, data=json.dumps({
+        "runId": RUNID,
+        "status": {
+            "status": status
+        },
+        "output": output,
+        "errors": error
+    }), cert=cert_info)
+    exit_with_code(code)
 
 # -u to use unbuffered output
 CMD = [sys.executable, '-u', FILE_TO_EXECUTE]
@@ -84,11 +114,11 @@ PROCESS = subprocess.Popen(
     CMD, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
 )
 
-BUFFER = OutputBuffer(BUFFER_MAX, BUFFER_FLUSH_SECS, RequestFlushHandler(EMIT_URL, OUTPUT_EVENT_TYPE), True)
+BUFFER = OutputBuffer(BUFFER_MAX, BUFFER_FLUSH_SECS, RequestFlushHandler(EMIT_URL, OUTPUT_EVENT_TYPE, (CERT_PATH, KEY_PATH)), True)
 
-def after():
+def end_run():
     process_status_code = PROCESS.wait()
-    exitWithCode(process_status_code)
+    end_run_with_code(process_status_code, BUFFER.output, BUFFER.stderr)
 
 
 SELECTOR = selectors.DefaultSelector()
@@ -98,7 +128,8 @@ while True:
     for key, _ in SELECTOR.select():
         data = key.fileobj.read1(BUFFER_MAX).decode()
         if not data:
-            after()
+            BUFFER.flush_buffer()
+            end_run()
         if key.fileobj is PROCESS.stdout:
             BUFFER.register_stdout(data)
         else:

@@ -15,6 +15,8 @@ class Ivis:
     # to preserve the API, this field must be static (store_state is static, but requires the url) 
     _request_url_base = ""
     _trustedEmitPath = ""
+    _keyPath = ""
+    _certPath = ""
 
     def __init__(self):
         self._data = json.loads(sys.stdin.readline())
@@ -24,6 +26,8 @@ class Ivis:
         set_ca = False
         Ivis._request_url_base = self._data['server']['trustedUrlBase']
         Ivis._trustedEmitPath = self._data['server']['trustedEmitPath']
+        Ivis._keyPath = self._data['keyPath']
+        Ivis._certPath = self._data['certPath']
         # this might result (>1 parallel runs) in more tasks writing the same CA into the certifi file 
         try:
             # try to resolve IVIS
@@ -43,13 +47,11 @@ class Ivis:
                 outfile.write(ca_cert_str)
 
         if self._data['certs']:
-            cert_path = self._data['certPath']
-            key_path = self._data['keyPath']
             # CA injection needed also for the elasticsearch client
             if set_ca:
-                self._elasticsearch = Elasticsearch(esUrl, use_ssl=True, ca_certs=ca_path, client_cert=cert_path, client_key=key_path, verify_certs=True)
+                self._elasticsearch = Elasticsearch(esUrl, use_ssl=True, ca_certs=ca_path, client_cert=Ivis._certPath, client_key=Ivis._keyPath, verify_certs=True)
             else:
-                self._elasticsearch = Elasticsearch(esUrl, use_ssl=True, client_cert=cert_path, client_key=key_path, verify_certs=True)
+                self._elasticsearch = Elasticsearch(esUrl, use_ssl=True, client_cert=Ivis._certPath, client_key=Ivis._keyPath, verify_certs=True)
         else:
             self._elasticsearch = Elasticsearch([esUrl])
         self.state = self._data.get('state')
@@ -69,7 +71,7 @@ class Ivis:
         url = Ivis._request_url()
         response = dict()
         try:
-            requests.post(url, data=json.dumps(msg)).json()
+            requests.post(url, data=json.dumps(msg), cert=(Ivis._certPath, Ivis._keyPath)).json()
         except requests.ConnectionError :
             raise RequestException('Could not estabilish connection to the IVIS-core instance (address: ' + url + ')')
         error = response.get('error')
