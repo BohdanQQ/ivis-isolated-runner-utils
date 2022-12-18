@@ -95,7 +95,7 @@ SELECTOR.register(PROCESS.stdout, selectors.EVENT_READ)
 SELECTOR.register(PROCESS.stderr, selectors.EVENT_READ)
 while True:
     for key, _ in SELECTOR.select():
-        data = key.fileobj.read1().decode()
+        data = key.fileobj.read1(-1).decode()
         if not data:
             after()
         if key.fileobj is PROCESS.stdout:
