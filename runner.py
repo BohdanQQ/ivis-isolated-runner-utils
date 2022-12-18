@@ -6,15 +6,13 @@ import requests
 import json
 
 class RequestFlushHandler:
-    def __init__(self, emit_url_base, runId, eventTypeValue, formatString: str) -> None:
+    def __init__(self, emit_url_base: str, outputEventType: str) -> None:
         self.url = emit_url_base
-        self.runId = runId
-        self.eventTypeVal = eventTypeValue
-        self.emitFormat = formatString
+        self.eventTypeVal = outputEventType
 
     def flush(self, output) -> None:
         msg = {
-            'type': self.emitFormat.format(runId = self.runId, eventTypeValue = self.eventTypeVal),
+            'type': self.eventTypeVal,
             'data': output
         }
         requests.post(self.url, data=json.dumps(msg))
@@ -75,9 +73,7 @@ FILE_TO_EXECUTE=sys.argv[1]
 BUFFER_MAX=int(sys.argv[2])
 BUFFER_FLUSH_SECS=int(sys.argv[3])
 EMIT_URL = sys.argv[4]
-RUN_ID = sys.argv[5]
-OUTPUT_EVENT_VALUE = sys.argv[6]
-EVENT_FORMAT_STR = sys.argv[7]
+OUTPUT_EVENT_TYPE = sys.argv[5]
 
 
 # -u to use unbuffered output
@@ -87,7 +83,7 @@ PROCESS = subprocess.Popen(
     CMD, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
 )
 
-BUFFER = OutputBuffer(BUFFER_MAX, BUFFER_FLUSH_SECS, RequestFlushHandler(EMIT_URL, RUN_ID, OUTPUT_EVENT_VALUE, EVENT_FORMAT_STR), True)
+BUFFER = OutputBuffer(BUFFER_MAX, BUFFER_FLUSH_SECS, RequestFlushHandler(EMIT_URL, OUTPUT_EVENT_TYPE), True)
 
 def after():
     process_status_code = PROCESS.wait()
