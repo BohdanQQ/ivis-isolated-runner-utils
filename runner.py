@@ -3,7 +3,6 @@ import subprocess
 import sys
 import datetime
 import requests
-import json
 
 class RequestFlushHandler:
     def __init__(self, emit_url_base: str, output_event_type: str, cert_paths) -> None:
@@ -12,11 +11,10 @@ class RequestFlushHandler:
         self.cert_paths = cert_paths
 
     def flush(self, output) -> None:
-        msg = {
+        requests.post(self.url, json={
             'type': self.event_type_val,
             'data': "\n".join(output)
-        }
-        requests.post(self.url, data=json.dumps(msg), cert=self.cert_paths)
+        }, cert=self.cert_paths)
 
 class OutputBuffer:
     def __init__(self, total_output_max_bytes, flush_timeout_secs, flusher, report_output_overflow) -> None:
@@ -93,18 +91,18 @@ def end_run_with_code(code, output, error):
     cert_info = (CERT_PATH, KEY_PATH)
     event = SUCCESS_EVENT_TYPE if code == 0 else FAIL_EVENT_TYPE
     status = SUCCESS_STATUS_CODE if code == 0 else FAIL_STATUS_CODE
-    requests.post(EMIT_URL, data=json.dumps({
+    requests.post(EMIT_URL, json={
         "type": event,
         "data": ""
-    }), cert=cert_info)
-    requests.post(STATUS_URL, data=json.dumps({
+    }, cert=cert_info)
+    requests.post(STATUS_URL, json={
         "runId": RUNID,
         "status": {
             "status": status
         },
         "output": output,
         "errors": error
-    }), cert=cert_info)
+    }, cert=cert_info)
     exit_with_code(code)
 
 # -u to use unbuffered output
