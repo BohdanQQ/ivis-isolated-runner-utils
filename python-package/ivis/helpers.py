@@ -19,15 +19,15 @@ class Ivis:
     _certPath = ""
 
     def __init__(self):
-        self._data = json.loads(sys.stdin.readline())
-        esUrl = str(self._data['es']['host']) + ":" + str(self._data['es']['port'])
-        ca_path = self._data['caPath']
+        self._data = json.loads(input())
+        esUrl = self._data['es']['urlBase']
+        ca_path = os.path.expanduser(self._data['caPath'])
         # a flag inidicating whether to inject the CA certificate or not 
         set_ca = False
         Ivis._request_url_base = self._data['server']['trustedUrlBase']
         Ivis._trustedEmitPath = self._data['server']['trustedEmitPath']
-        Ivis._keyPath = self._data['keyPath']
-        Ivis._certPath = self._data['certPath']
+        Ivis._keyPath = os.path.expanduser(self._data['keyPath'])
+        Ivis._certPath = os.path.expanduser(self._data['certPath'])
         # this might result (>1 parallel runs) in more tasks writing the same CA into the certifi file 
         try:
             # try to resolve IVIS

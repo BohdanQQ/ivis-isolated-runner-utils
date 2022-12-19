@@ -124,6 +124,11 @@ def end_run():
 SELECTOR = selectors.DefaultSelector()
 SELECTOR.register(PROCESS.stdout, selectors.EVENT_READ)
 SELECTOR.register(PROCESS.stderr, selectors.EVENT_READ)
+
+PROCESS.stdin.write(bytes(input(), 'utf8'))
+PROCESS.stdin.write(b'\n')
+PROCESS.stdin.flush()
+
 while True:
     for key, _ in SELECTOR.select():
         data = key.fileobj.read1(BUFFER_MAX).decode()
