@@ -62,7 +62,7 @@ class OutputBuffer:
         if len(self.output_buffer) == 0:
             return
         self.flusher.flush(self.output_buffer)
-        self.output += "\n" + "\n".join(self.output_buffer)
+        self.output += "\n".join(self.output_buffer)
         self.output_buffer = []
 
 def exit_with_code(code):
