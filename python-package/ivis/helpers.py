@@ -15,6 +15,7 @@ class Ivis:
     # to preserve the API, this field must be static (store_state is static, but requires the url) 
     _request_url_base = ""
     _trustedEmitPath = ""
+    _trustedRunRequestPath = ""
     _keyPath = ""
     _certPath = ""
 
@@ -26,6 +27,7 @@ class Ivis:
         set_ca = False
         Ivis._request_url_base = self._data['server']['trustedUrlBase']
         Ivis._trustedEmitPath = self._data['server']['trustedEmitPath']
+        Ivis._trustedRunRequestPath = self._data['server']['trustedRunRequestPath']
         Ivis._keyPath = os.path.expanduser(self._data['keyPath'])
         Ivis._certPath = os.path.expanduser(self._data['certPath'])
         # this might result (>1 parallel runs) in more tasks writing the same CA into the certifi file 
@@ -67,8 +69,8 @@ class Ivis:
         return self._elasticsearch
 
     @staticmethod
-    def _request(msg):
-        url = Ivis._request_url()
+    def _request(msg, path):
+        url = Ivis._request_url(path)
         response = dict()
         try:
             requests.post(url, data=json.dumps(msg), cert=(Ivis._certPath, Ivis._keyPath)).json()
@@ -80,8 +82,8 @@ class Ivis:
         return response
     
     @staticmethod
-    def _request_url():
-        return Ivis._request_url_base + Ivis._trustedEmitPath
+    def _request_url(path):
+        return Ivis._request_url_base + path
 
     def create_signals(self, signal_sets=None, signals=None):
         msg = {
@@ -94,7 +96,7 @@ class Ivis:
         if signals is not None:
             msg['signals'] = signals
 
-        response = Ivis._request(msg)
+        response = Ivis._request(msg, Ivis._trustedRunRequestPath)
 
         # Add newly created to owned
         for sig_set_cid, set_props in response.items():
@@ -171,7 +173,7 @@ class Ivis:
             "type": "store_state",
             "state": state
         }
-        return Ivis._request(msg)
+        return Ivis._request(msg, Ivis._trustedRunRequestPath)
 
     def upload_file(self, file):
         url = f"{self._sandboxUrlBase}/{self._accessToken}/rest/files/job/file/{self._jobId}/"
