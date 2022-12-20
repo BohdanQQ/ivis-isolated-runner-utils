@@ -79,12 +79,15 @@ class Ivis:
         url = Ivis._request_url(path)
         response = dict()
         try:
-            requests.post(url, data=json.dumps(msg), cert=(Ivis._certPath, Ivis._keyPath)).json()
+            html_reponse = requests.post(url, json=msg, cert=(Ivis._certPath, Ivis._keyPath))
+            response = html_reponse.json()
         except requests.ConnectionError :
             raise RequestException('Could not estabilish connection to the IVIS-core instance (address: ' + url + ')')
         error = response.get('error')
         if error:
-            raise RequestException(error)
+            raise RequestException('Run request failed with code ' + str(html_reponse.status_code) + ' and error:\n' + str(error))
+        if html_reponse.status_code != 200:
+            raise RequestException('Run request failed with code ' + str(html_reponse.status_code))
         return response
     
     @staticmethod
