@@ -18,6 +18,9 @@ class Ivis:
     _trustedRunRequestPath = ""
     _keyPath = ""
     _certPath = ""
+    _storeStateRequestType = None
+    _createSignalRequestType = None
+    _jobId = None
 
     def __init__(self):
         self._data = json.loads(input())
@@ -28,6 +31,9 @@ class Ivis:
         Ivis._request_url_base = self._data['server']['trustedUrlBase']
         Ivis._trustedEmitPath = self._data['server']['trustedEmitPath']
         Ivis._trustedRunRequestPath = self._data['server']['trustedRunRequestPath']
+        Ivis._storeStateRequestType = self._data['requestTypes']['storeState']
+        Ivis._createSignalRequestType = self._data['requestTypes']['createSignal']
+        Ivis._jobId = self._data['context']['jobId']
         Ivis._keyPath = os.path.expanduser(self._data['keyPath'])
         Ivis._certPath = os.path.expanduser(self._data['certPath'])
         # this might result (>1 parallel runs) in more tasks writing the same CA into the certifi file 
@@ -86,17 +92,14 @@ class Ivis:
         return Ivis._request_url_base + path
 
     def create_signals(self, signal_sets=None, signals=None):
-        msg = {
-            'type': 'create_signals',
-        }
-
-        if signal_sets is not None:
-            msg['signalSets'] = signal_sets
-
-        if signals is not None:
-            msg['signals'] = signals
-
-        response = Ivis._request(msg, Ivis._trustedRunRequestPath)
+        response = Ivis._request({
+            'type': Ivis._createSignalRequestType,
+            'payload': {
+                'jobId': Ivis._jobId,
+                'signalSets': signal_sets,
+                'signalsSpec': signals
+            }
+        }, Ivis._trustedRunRequestPath)
 
         # Add newly created to owned
         for sig_set_cid, set_props in response.items():
@@ -169,11 +172,15 @@ class Ivis:
 
     @staticmethod
     def store_state(state):
-        msg = {
-            "type": "store_state",
-            "state": state
-        }
-        return Ivis._request(msg, Ivis._trustedRunRequestPath)
+        return Ivis._request({
+            'type': Ivis._storeStateRequestType,
+            'payload': {
+                'jobId': Ivis._jobId,
+                'request': {
+                    'state': state
+                }
+            }
+        }, Ivis._trustedRunRequestPath)
 
     def upload_file(self, file):
         url = f"{self._sandboxUrlBase}/{self._accessToken}/rest/files/job/file/{self._jobId}/"
