@@ -1,3 +1,4 @@
+import signal
 import selectors
 import subprocess
 import sys
@@ -107,6 +108,16 @@ def end_run_with_code(code, output, error):
     }, cert=cert_info)
     exit_with_code(code)
 
+BUFFER = OutputBuffer(BUFFER_MAX, BUFFER_FLUSH_SECS, RequestFlushHandler(EMIT_URL, OUTPUT_EVENT_TYPE, (CERT_PATH, KEY_PATH)), True)
+
+def sigterm_handler():
+    if BUFFER is None:
+        end_run_with_code(1, '', '')
+    else:
+        end_run_with_code(1, BUFFER.output, BUFFER.stderr)
+
+signal.signal(signal.SIGTERM, sigterm_handler)
+
 # -u to use unbuffered output
 CMD = [sys.executable, '-u', FILE_TO_EXECUTE]
 
@@ -114,7 +125,6 @@ PROCESS = subprocess.Popen(
     CMD, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
 )
 
-BUFFER = OutputBuffer(BUFFER_MAX, BUFFER_FLUSH_SECS, RequestFlushHandler(EMIT_URL, OUTPUT_EVENT_TYPE, (CERT_PATH, KEY_PATH)), True)
 
 def end_run():
     process_status_code = PROCESS.wait()
