@@ -14,7 +14,7 @@ class RequestFlushHandler:
     def flush(self, output) -> None:
         requests.post(self.url, json={
             'type': self.event_type_val,
-            'data': "\n".join(output)
+            'data': "".join(output)
         }, cert=self.cert_paths)
 
 class OutputBuffer:
@@ -48,7 +48,7 @@ class OutputBuffer:
 
     def register_stderr(self, output):
         self.register_out(output)
-        self.stderr += "\n" + output
+        self.stderr += output
     
     def buffer_flush_interval_elapsed(self):
         return self.last_flush is None or (datetime.datetime.now() - self.last_flush).total_seconds() >= self.BUFF_FLUSH_TIMEOUT_SECS
@@ -62,7 +62,7 @@ class OutputBuffer:
         if len(self.output_buffer) == 0:
             return
         self.flusher.flush(self.output_buffer)
-        self.output += "\n".join(self.output_buffer)
+        self.output += "".join(self.output_buffer)
         self.output_buffer = []
 
 def exit_with_code(code):
