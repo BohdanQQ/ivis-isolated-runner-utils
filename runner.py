@@ -110,10 +110,11 @@ def end_run_with_code(code, output, error):
 
 BUFFER = OutputBuffer(BUFFER_MAX, BUFFER_FLUSH_SECS, RequestFlushHandler(EMIT_URL, OUTPUT_EVENT_TYPE, (CERT_PATH, KEY_PATH)), True)
 
-def sigterm_handler():
+def sigterm_handler(_unused, _unused2):
     if BUFFER is None:
-        end_run_with_code(1, '', '')
+        end_run_with_code(1, 'run has been stopped', '')
     else:
+        BUFFER.register_stderr('run has been stopped')
         end_run_with_code(1, BUFFER.output, BUFFER.stderr)
 
 signal.signal(signal.SIGTERM, sigterm_handler)
