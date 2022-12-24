@@ -27,7 +27,7 @@ class OutputBuffer:
         self.output_has_overflown = False
         self.flusher = flusher
         self.output_buffer = []
-        self.output = ""
+        self.stdout = ""
         self.stderr = ""
 
     def register_out(self, output):
@@ -45,9 +45,10 @@ class OutputBuffer:
     
     def register_stdout(self, output):
         self.register_out(output)
+        self.stdout += output
 
     def register_stderr(self, output):
-        self.register_out(output)
+        # according to IVIS-core implementation, stderr does not count against output bytes
         self.stderr += output
     
     def buffer_flush_interval_elapsed(self):
@@ -62,7 +63,6 @@ class OutputBuffer:
         if len(self.output_buffer) == 0:
             return
         self.flusher.flush(self.output_buffer)
-        self.output += "".join(self.output_buffer)
         self.output_buffer = []
 
 def exit_with_code(code):
@@ -128,7 +128,7 @@ BUFFER = OutputBuffer(BUFFER_MAX, BUFFER_FLUSH_SECS, RequestFlushHandler(EMIT_UR
 
 def end_run():
     process_status_code = PROCESS.wait()
-    end_run_with_code(process_status_code, BUFFER.output, BUFFER.stderr)
+    end_run_with_code(process_status_code, BUFFER.stdout, BUFFER.stderr)
 
 
 SELECTOR = selectors.DefaultSelector()
