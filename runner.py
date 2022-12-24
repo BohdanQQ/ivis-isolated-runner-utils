@@ -69,7 +69,7 @@ def exit_with_code(code):
     print(str(code))
     exit(code)
 
-if len(sys.argv) < 14:
+if len(sys.argv) < 15:
     print("Invalid number of arguments")
     exit_with_code(1)
 
@@ -86,6 +86,7 @@ SUCCESS_STATUS_CODE = sys.argv[10]
 CERT_PATH = sys.argv[11]
 KEY_PATH = sys.argv[12]
 RUNID = sys.argv[13]
+RUNNING_STATUS_CODE = sys.argv[14]
 # TODO: CA injection
 
 def end_run_with_code(code, output, error):
@@ -106,6 +107,14 @@ def end_run_with_code(code, output, error):
         "errors": error
     }, cert=cert_info)
     exit_with_code(code)
+
+# indicate run is running (there is no event for that)
+requests.post(STATUS_URL, json={
+    "runId": RUNID,
+    "status": {
+        "status": RUNNING_STATUS_CODE,
+    },
+}, cert=(CERT_PATH, KEY_PATH))
 
 # -u to use unbuffered output
 CMD = [sys.executable, '-u', FILE_TO_EXECUTE]
