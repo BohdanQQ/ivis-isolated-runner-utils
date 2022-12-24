@@ -93,6 +93,7 @@ def end_run_with_code(code, output, error):
     cert_info = (CERT_PATH, KEY_PATH)
     event = SUCCESS_EVENT_TYPE if code == 0 else FAIL_EVENT_TYPE
     status = SUCCESS_STATUS_CODE if code == 0 else FAIL_STATUS_CODE
+    final_output = output if code == 0 else f"Run failed with code {code}\n\nError log:\n{error}\n\nLog:{output}"
     requests.post(EMIT_URL, json={
         "type": event,
         "data": ""
@@ -103,7 +104,7 @@ def end_run_with_code(code, output, error):
             "status": status,
             "finished_at": int(time.time()) * 1000
         },
-        "output": output,
+        "output": final_output,
         "errors": error
     }, cert=cert_info)
     exit_with_code(code)
