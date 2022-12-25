@@ -36,6 +36,7 @@ class OutputBuffer:
                 self.output_has_overflown = True
                 if self.report_output_overflow:
                     message = "INFO: max output capacity reached"
+                    self.stdout += message + '\n'
                     self.output_buffer.append(message)
                 self.flush_buffer()
         else:
@@ -146,6 +147,9 @@ while True:
             BUFFER.flush_buffer()
             end_run()
         if key.fileobj is PROCESS.stdout:
+            # copy output in case status request needs the data later
+            print(data, file=sys.stdout)
             BUFFER.register_stdout(data)
         else:
+            print(data, file=sys.stderr)
             BUFFER.register_stderr(data)
