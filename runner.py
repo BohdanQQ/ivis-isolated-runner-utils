@@ -148,8 +148,8 @@ while True:
             end_run()
         if key.fileobj is PROCESS.stdout:
             # copy output in case status request needs the data later
-            print(data, file=sys.stdout)
+            print(data, file=sys.stdout, end='')
             BUFFER.register_stdout(data)
         else:
-            print(data, file=sys.stderr)
+            print(data, file=sys.stderr, end='')
             BUFFER.register_stderr(data)
