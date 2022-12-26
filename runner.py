@@ -28,7 +28,6 @@ class OutputBuffer:
         self.flusher = flusher
         self.output_buffer = []
         self.stdout = ""
-        self.stderr = ""
 
     def register_out(self, output):
         if self.output_size + len(output) > self.MAX_TOTAL_OUTPUT:
@@ -48,10 +47,6 @@ class OutputBuffer:
         self.register_out(output)
         self.stdout += output
 
-    def register_stderr(self, output):
-        # according to IVIS-core implementation, stderr does not count against output bytes
-        self.stderr += output
-    
     def buffer_flush_interval_elapsed(self):
         return self.last_flush is None or (datetime.datetime.now() - self.last_flush).total_seconds() >= self.BUFF_FLUSH_TIMEOUT_SECS
 
@@ -90,11 +85,11 @@ RUNID = sys.argv[13]
 RUNNING_STATUS_CODE = sys.argv[14]
 # TODO: CA injection
 
-def end_run_with_code(code, output, error):
+def end_run_with_code(code, flushed_output, remaining_output, error):
     cert_info = (CERT_PATH, KEY_PATH)
     event = SUCCESS_EVENT_TYPE if code == 0 else FAIL_EVENT_TYPE
     status = SUCCESS_STATUS_CODE if code == 0 else FAIL_STATUS_CODE
-    final_output = output if code == 0 else f"Run failed with code {code}\n\nError log:\n{error}\n\nLog:{output}"
+    final_output = remaining_output if code == 0 else f"Run failed with code {code}\n\nError log:\n{error}\n\nLog:\n{flushed_output}\n{remaining_output}"
     requests.post(EMIT_URL, json={
         "type": event,
         "data": ""
@@ -106,7 +101,6 @@ def end_run_with_code(code, output, error):
             "finished_at": int(time.time()) * 1000
         },
         "output": final_output,
-        "errors": error
     }, cert=cert_info)
     exit_with_code(code)
 
@@ -129,8 +123,19 @@ BUFFER = OutputBuffer(BUFFER_MAX, BUFFER_FLUSH_SECS, RequestFlushHandler(EMIT_UR
 
 def end_run():
     process_status_code = PROCESS.wait()
-    end_run_with_code(process_status_code, BUFFER.stdout, BUFFER.stderr)
+    stderr = str(PROCESS.stderr.read(), 'utf8')
+    # sometimes it happens that not all output gets registered via the SELECTOR
+    # thus IVIS core does not receive this output
 
+    # the remaining output simply remains in the stdout stream
+    remaining_output = str(PROCESS.stdout.read(), 'utf8')
+    try:
+        PROCESS.stdout.close()
+        PROCESS.stderr.close()
+        PROCESS.stdin.close()
+    except:
+        pass
+    end_run_with_code(process_status_code, BUFFER.stdout, remaining_output, stderr)
 
 SELECTOR = selectors.DefaultSelector()
 SELECTOR.register(PROCESS.stdout, selectors.EVENT_READ)
@@ -147,9 +152,6 @@ while True:
             BUFFER.flush_buffer()
             end_run()
         if key.fileobj is PROCESS.stdout:
-            # copy output in case status request needs the data later
-            print(data, file=sys.stdout, end='')
+            # buffering stdout to make sure the output emmisions are going through 
             BUFFER.register_stdout(data)
-        else:
-            print(data, file=sys.stderr, end='')
-            BUFFER.register_stderr(data)
+        # stderr does not emit output events -> don't buffer it, don't touch it
