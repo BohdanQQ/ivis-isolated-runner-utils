@@ -94,7 +94,7 @@ def end_run_with_code(code, output, error):
     print(error, end="", file=sys.stderr)
     requests.post(EMIT_URL, json={
         "type": event,
-        "data": ""
+        "data": "" if status == SUCCESS_STATUS_CODE else f"Run failed with code {code}\n\nError log:\n{error}"
     }, cert=cert_info)
     requests.post(STATUS_URL, json={
         "runId": RUNID,
