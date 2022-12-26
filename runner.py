@@ -85,11 +85,13 @@ RUNID = sys.argv[13]
 RUNNING_STATUS_CODE = sys.argv[14]
 # TODO: CA injection
 
-def end_run_with_code(code, flushed_output, remaining_output, error):
+def end_run_with_code(code, output, error):
     cert_info = (CERT_PATH, KEY_PATH)
     event = SUCCESS_EVENT_TYPE if code == 0 else FAIL_EVENT_TYPE
     status = SUCCESS_STATUS_CODE if code == 0 else FAIL_STATUS_CODE
-    final_output = remaining_output if code == 0 else f"Run failed with code {code}\n\nError log:\n{error}\n\nLog:\n{flushed_output}\n{remaining_output}"
+    final_output = output if code == 0 else f"Run failed with code {code}\n\nError log:\n{error}\n\nLog:\n{output}"
+    print(output, end="", file=sys.stdout)
+    print(error, end="", file=sys.stderr)
     requests.post(EMIT_URL, json={
         "type": event,
         "data": ""
@@ -129,13 +131,16 @@ def end_run():
 
     # the remaining output simply remains in the stdout stream
     remaining_output = str(PROCESS.stdout.read(), 'utf8')
+    if len(remaining_output) != 0:
+        BUFFER.register_stdout(remaining_output)
+        BUFFER.flush_buffer()
     try:
         PROCESS.stdout.close()
         PROCESS.stderr.close()
         PROCESS.stdin.close()
     except:
         pass
-    end_run_with_code(process_status_code, BUFFER.stdout, remaining_output, stderr)
+    end_run_with_code(process_status_code, BUFFER.stdout, stderr)
 
 SELECTOR = selectors.DefaultSelector()
 SELECTOR.register(PROCESS.stdout, selectors.EVENT_READ)
